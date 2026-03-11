@@ -24,6 +24,8 @@ interface StockResult {
   currency: string;
 }
 
+type Market = 'us' | 'jp';
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function signal(score: number): { text: string; color: string; bg: string } {
   if (score >= 1.5)  return { text: '◎ 強い割安', color: '#3fb950', bg: 'rgba(63,185,80,0.12)'  };
@@ -44,8 +46,18 @@ function moduleSymbol(score: number) {
   return map[score] ?? { icon: '—', cls: 'text-gray-500' };
 }
 
-function fmtUSD(v: number, dec = 2) {
-  return '$' + v.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+function fmtPrice(v: number, currency: string) {
+  if (currency === 'JPY') {
+    return '¥' + Math.round(v).toLocaleString('ja-JP');
+  }
+  return '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function fmtIntrinsic(v: number, currency: string) {
+  if (currency === 'JPY') {
+    return '¥' + Math.round(v).toLocaleString('ja-JP');
+  }
+  return '$' + Math.round(v).toLocaleString('en-US');
 }
 
 function ScoreBar({ score }: { score: number }) {
@@ -75,6 +87,7 @@ type SortKey = keyof StockResult;
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function ScreenerPage() {
+  const [market,    setMarket]    = useState<Market>('us');
   const [data,      setData]      = useState<StockResult[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState<string | null>(null);
@@ -87,7 +100,7 @@ export default function ScreenerPage() {
     setLoading(true);
     setError(null);
     try {
-      const res  = await fetch('/api/screener');
+      const res  = await fetch(`/api/screener?market=${market}`);
       const json = await res.json();
       if (json.error) throw new Error(json.error);
       setData(json.data ?? []);
@@ -97,7 +110,7 @@ export default function ScreenerPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [market]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -123,6 +136,7 @@ export default function ScreenerPage() {
   );
 
   const medals = ['🥇', '🥈', '🥉'];
+  const currency = data[0]?.currency ?? (market === 'jp' ? 'JPY' : 'USD');
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white">
@@ -145,6 +159,27 @@ export default function ScreenerPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Market Selector */}
+            <div className="flex rounded-lg bg-gray-900 border border-gray-800 p-0.5">
+              {([
+                { key: 'us', flag: '🇺🇸', label: '米国株' },
+                { key: 'jp', flag: '🇯🇵', label: '日本株' },
+              ] as { key: Market; flag: string; label: string }[]).map(m => (
+                <button
+                  key={m.key}
+                  onClick={() => { if (market !== m.key) { setMarket(m.key); setData([]); } }}
+                  disabled={loading}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-all disabled:opacity-50 ${
+                    market === m.key
+                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                      : 'text-gray-500 hover:text-gray-300'
+                  }`}
+                >
+                  {m.flag} {m.label}
+                </button>
+              ))}
+            </div>
+
             {meta && (
               <span className="text-xs text-gray-600 hidden sm:block">
                 {new Date(meta.timestamp).toLocaleString('ja-JP')} 更新
@@ -174,7 +209,9 @@ export default function ScreenerPage() {
             </div>
             <div className="text-center">
               <p className="text-gray-300 font-medium">Yahoo Finance からデータを取得中...</p>
-              <p className="text-gray-600 text-sm mt-1">約80銘柄を三角測量スクリーニング中</p>
+              <p className="text-gray-600 text-sm mt-1">
+                {market === 'jp' ? '約50銘柄（日本株）' : '約80銘柄（米国株）'}を三角測量スクリーニング中
+              </p>
             </div>
           </div>
         )}
@@ -200,9 +237,14 @@ export default function ScreenerPage() {
             {/* Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
               {[
-                { label: 'スクリーニング銘柄', value: meta?.universe ?? 0, unit: '銘柄', sub: '米国主要株' },
-                { label: '取得成功',           value: meta?.total   ?? 0, unit: '銘柄', sub: 'データ有効' },
-                { label: '分析手法',           value: 3,                  unit: '手法', sub: 'P/E · DCF · GDM' },
+                {
+                  label: 'スクリーニング銘柄',
+                  value: meta?.universe ?? 0,
+                  unit: '銘柄',
+                  sub: market === 'jp' ? '日本主要株' : '米国主要株',
+                },
+                { label: '取得成功',  value: meta?.total ?? 0, unit: '銘柄', sub: 'データ有効' },
+                { label: '分析手法',  value: 3,                unit: '手法', sub: 'P/E · DCF · GDM' },
                 {
                   label: '最高スコア',
                   value: data[0]?.overall.toFixed(2),
@@ -272,7 +314,7 @@ export default function ScreenerPage() {
                           <div className="text-sm text-gray-400 truncate">{stock.name}</div>
                         </div>
 
-                        <div className="text-3xl font-bold mb-4">{fmtUSD(stock.price)}</div>
+                        <div className="text-3xl font-bold mb-4">{fmtPrice(stock.price, stock.currency)}</div>
 
                         {/* Module scores */}
                         <div className="grid grid-cols-3 gap-2 mb-4">
@@ -305,7 +347,7 @@ export default function ScreenerPage() {
                         <div className="grid grid-cols-3 gap-x-2 mt-3 pt-3 border-t border-gray-800 text-center">
                           <div>
                             <div className="text-[10px] text-gray-600">内在価値</div>
-                            <div className="text-xs font-bold text-amber-300">{fmtUSD(stock.intrinsic, 0)}</div>
+                            <div className="text-xs font-bold text-amber-300">{fmtIntrinsic(stock.intrinsic, stock.currency)}</div>
                           </div>
                           <div>
                             <div className="text-[10px] text-gray-600">成長率</div>
@@ -349,7 +391,7 @@ export default function ScreenerPage() {
                           </span>
                         </div>
 
-                        <div className="text-lg font-bold mb-2">{fmtUSD(stock.price)}</div>
+                        <div className="text-lg font-bold mb-2">{fmtPrice(stock.price, stock.currency)}</div>
 
                         <div className="flex justify-around mb-2">
                           <ModulePill label="P/E"  score={stock.peScore}  />
@@ -394,7 +436,7 @@ export default function ScreenerPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {sorted.map((stock, i) => {
+                      {sorted.map((stock) => {
                         const origRank = data.findIndex(d => d.symbol === stock.symbol) + 1;
                         const sig = signal(stock.overall);
                         return (
@@ -414,7 +456,7 @@ export default function ScreenerPage() {
                               <div className="text-[11px] text-gray-500 max-w-[120px] truncate">{stock.name}</div>
                             </td>
                             <td className="px-3 py-3 text-[11px] text-gray-500">{stock.sector}</td>
-                            <td className="px-3 py-3 font-mono font-bold">{fmtUSD(stock.price)}</td>
+                            <td className="px-3 py-3 font-mono font-bold">{fmtPrice(stock.price, stock.currency)}</td>
                             <td className="px-3 py-3">
                               <span className={`font-mono font-semibold ${stock.trailPE < stock.sectorPE ? 'text-green-400' : 'text-red-400'}`}>
                                 {stock.trailPE}x
@@ -422,7 +464,7 @@ export default function ScreenerPage() {
                             </td>
                             <td className="px-3 py-3 font-mono text-gray-500 text-xs">{stock.sectorPE}x</td>
                             <td className="px-3 py-3 font-mono text-amber-300 font-semibold">
-                              {fmtUSD(stock.intrinsic, 0)}
+                              {fmtIntrinsic(stock.intrinsic, stock.currency)}
                             </td>
                             <td className="px-3 py-3">
                               <span className={`font-mono font-bold ${stock.mos >= 20 ? 'text-green-400' : stock.mos >= 0 ? 'text-yellow-400' : 'text-red-400'}`}>

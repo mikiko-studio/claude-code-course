@@ -4,8 +4,8 @@ const yahooFinance = new YahooFinance();
 
 export const dynamic = 'force-dynamic';
 
-// ─── Stock Universe ───────────────────────────────────────────────────────────
-const STOCKS: { symbol: string; sector: string }[] = [
+// ─── US Stock Universe ────────────────────────────────────────────────────────
+const US_STOCKS: { symbol: string; sector: string }[] = [
   // Technology
   { symbol: 'AAPL',  sector: 'Technology' },
   { symbol: 'MSFT',  sector: 'Technology' },
@@ -103,8 +103,72 @@ const STOCKS: { symbol: string; sector: string }[] = [
   { symbol: 'CMCSA', sector: 'Communication Services' },
 ];
 
-// ─── Sector P/E Benchmarks ────────────────────────────────────────────────────
-const SECTOR_PE: Record<string, number> = {
+// ─── Japan Stock Universe ─────────────────────────────────────────────────────
+const JP_STOCKS: { symbol: string; sector: string }[] = [
+  // Technology / Electronics
+  { symbol: '6758.T', sector: 'Technology' },   // Sony Group
+  { symbol: '6861.T', sector: 'Technology' },   // Keyence
+  { symbol: '8035.T', sector: 'Technology' },   // Tokyo Electron
+  { symbol: '6981.T', sector: 'Technology' },   // Murata Manufacturing
+  { symbol: '6954.T', sector: 'Technology' },   // Fanuc
+  { symbol: '6702.T', sector: 'Technology' },   // Fujitsu
+  { symbol: '6594.T', sector: 'Technology' },   // Nidec
+  { symbol: '6723.T', sector: 'Technology' },   // Renesas Electronics
+  { symbol: '6857.T', sector: 'Technology' },   // Advantest
+  // Gaming / Entertainment
+  { symbol: '7974.T', sector: 'Consumer Discretionary' }, // Nintendo
+  { symbol: '4661.T', sector: 'Consumer Discretionary' }, // Oriental Land
+  { symbol: '9766.T', sector: 'Consumer Discretionary' }, // Konami
+  // Automotive
+  { symbol: '7203.T', sector: 'Industrials' },  // Toyota
+  { symbol: '7267.T', sector: 'Industrials' },  // Honda
+  { symbol: '6902.T', sector: 'Industrials' },  // Denso
+  { symbol: '7201.T', sector: 'Industrials' },  // Nissan
+  { symbol: '7270.T', sector: 'Industrials' },  // Subaru
+  { symbol: '7269.T', sector: 'Industrials' },  // Suzuki Motor
+  // Industrials / Machinery
+  { symbol: '6501.T', sector: 'Industrials' },  // Hitachi
+  { symbol: '6367.T', sector: 'Industrials' },  // Daikin
+  { symbol: '7011.T', sector: 'Industrials' },  // Mitsubishi Heavy
+  { symbol: '6752.T', sector: 'Industrials' },  // Panasonic
+  // Financials
+  { symbol: '8306.T', sector: 'Financials' },   // MUFG
+  { symbol: '8316.T', sector: 'Financials' },   // SMFG
+  { symbol: '8411.T', sector: 'Financials' },   // Mizuho
+  { symbol: '8591.T', sector: 'Financials' },   // ORIX
+  { symbol: '8750.T', sector: 'Financials' },   // Dai-ichi Life
+  // Telecom
+  { symbol: '9432.T', sector: 'Communication Services' }, // NTT
+  { symbol: '9433.T', sector: 'Communication Services' }, // KDDI
+  { symbol: '9434.T', sector: 'Communication Services' }, // SoftBank Corp
+  { symbol: '9984.T', sector: 'Communication Services' }, // SoftBank Group
+  // Healthcare / Pharma
+  { symbol: '4519.T', sector: 'Healthcare' },   // Chugai Pharma
+  { symbol: '4502.T', sector: 'Healthcare' },   // Takeda
+  { symbol: '4543.T', sector: 'Healthcare' },   // Terumo
+  { symbol: '4568.T', sector: 'Healthcare' },   // Daiichi Sankyo
+  { symbol: '4506.T', sector: 'Healthcare' },   // Sumitomo Pharma
+  // Consumer Staples
+  { symbol: '2914.T', sector: 'Consumer Staples' }, // Japan Tobacco
+  { symbol: '2802.T', sector: 'Consumer Staples' }, // Ajinomoto
+  { symbol: '3382.T', sector: 'Consumer Staples' }, // Seven & i Holdings
+  { symbol: '2503.T', sector: 'Consumer Staples' }, // Kirin Holdings
+  // Materials / Chemicals
+  { symbol: '4063.T', sector: 'Materials' },    // Shin-Etsu Chemical
+  { symbol: '4188.T', sector: 'Materials' },    // Mitsubishi Chemical
+  { symbol: '5401.T', sector: 'Materials' },    // Nippon Steel
+  // Energy / Utilities
+  { symbol: '9531.T', sector: 'Utilities' },    // Tokyo Gas
+  { symbol: '9502.T', sector: 'Utilities' },    // Chubu Electric
+  // Trading Companies
+  { symbol: '8058.T', sector: 'Financials' },   // Mitsubishi Corp
+  { symbol: '8031.T', sector: 'Financials' },   // Mitsui & Co
+  { symbol: '8001.T', sector: 'Financials' },   // Itochu
+  { symbol: '8053.T', sector: 'Financials' },   // Sumitomo Corp
+];
+
+// ─── US Sector Benchmarks ─────────────────────────────────────────────────────
+const US_SECTOR_PE: Record<string, number> = {
   'Technology':               27,
   'Financials':               13,
   'Healthcare':               20,
@@ -117,10 +181,8 @@ const SECTOR_PE: Record<string, number> = {
   'Materials':                16,
   'Communication Services':   18,
 };
-const DEFAULT_PE = 21;
 
-// ─── Sector-specific growth caps (realistic LT growth ceilings) ───────────────
-const SECTOR_MAX_GROWTH: Record<string, number> = {
+const US_SECTOR_MAX_GROWTH: Record<string, number> = {
   'Technology':               0.20,
   'Financials':               0.10,
   'Healthcare':               0.12,
@@ -132,6 +194,35 @@ const SECTOR_MAX_GROWTH: Record<string, number> = {
   'Real Estate':              0.07,
   'Materials':                0.08,
   'Communication Services':   0.08,
+};
+
+// ─── Japan Sector Benchmarks ──────────────────────────────────────────────────
+const JP_SECTOR_PE: Record<string, number> = {
+  'Technology':               25,
+  'Financials':               11,
+  'Healthcare':               28,
+  'Consumer Discretionary':   22,
+  'Consumer Staples':         20,
+  'Energy':                   10,
+  'Industrials':              15,
+  'Utilities':                14,
+  'Real Estate':              20,
+  'Materials':                12,
+  'Communication Services':   14,
+};
+
+const JP_SECTOR_MAX_GROWTH: Record<string, number> = {
+  'Technology':               0.15,
+  'Financials':               0.07,
+  'Healthcare':               0.10,
+  'Consumer Discretionary':   0.10,
+  'Consumer Staples':         0.06,
+  'Energy':                   0.06,
+  'Industrials':              0.08,
+  'Utilities':                0.04,
+  'Real Estate':              0.06,
+  'Materials':                0.07,
+  'Communication Services':   0.06,
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -189,12 +280,19 @@ function scoreGDM(cagr: number): number {
 }
 
 // ─── Route Handler ────────────────────────────────────────────────────────────
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const { searchParams } = new URL(req.url);
+    const market = searchParams.get('market') === 'jp' ? 'jp' : 'us';
+
+    const STOCKS          = market === 'jp' ? JP_STOCKS          : US_STOCKS;
+    const SECTOR_PE       = market === 'jp' ? JP_SECTOR_PE       : US_SECTOR_PE;
+    const SECTOR_MAX_GROWTH = market === 'jp' ? JP_SECTOR_MAX_GROWTH : US_SECTOR_MAX_GROWTH;
+    const DEFAULT_PE      = market === 'jp' ? 16 : 21;
+
     const symbols = STOCKS.map(s => s.symbol);
     const sectorOf = Object.fromEntries(STOCKS.map(s => [s.symbol, s.sector]));
 
-    // Batch fetch quotes (yahoo-finance2 handles crumb/cookie internally)
     const BATCH = 20;
     const batches: string[][] = [];
     for (let i = 0; i < symbols.length; i += BATCH) {
@@ -231,26 +329,22 @@ export async function GET() {
         const trailPE  = (q.trailingPE ?? (price / eps));
         const fwdPE    = (q.forwardPE  ?? trailPE);
 
-        // Growth rate: blend implied 1Y EPS growth with sector ceiling
-        const maxGrowth = SECTOR_MAX_GROWTH[sector] ?? 0.12;
-        let growth = Math.min(0.05, maxGrowth); // conservative base
+        const maxGrowth = SECTOR_MAX_GROWTH[sector] ?? 0.10;
+        let growth = Math.min(0.05, maxGrowth);
         if (q.epsForward != null && q.epsForward > 0 && eps > 0) {
           const g1 = (q.epsForward - eps) / eps;
           if (g1 > 0 && g1 < 1.0) {
-            // Blend: 60% implied 1Y growth (capped at sector max), 40% base 5%
             growth = Math.min(maxGrowth, g1 * 0.6 + 0.05 * 0.4);
           }
         }
-        // earningsGrowth (quarterly YoY) as secondary signal
         if (q.earningsGrowth != null && q.earningsGrowth > 0 && q.earningsGrowth < 0.5) {
           growth = Math.min(maxGrowth, (growth + q.earningsGrowth) / 2);
         }
         growth = Math.max(0.01, growth);
 
-        // Dividend yield: Yahoo Finance returns trailingAnnualDividendYield as decimal (0.066 = 6.6%)
-        // If value > 0.3, assume it was returned as percentage; divide by 100
         const rawYield = q.trailingAnnualDividendYield ?? q.dividendYield ?? 0;
         const divYield = rawYield > 0.3 ? rawYield / 100 : rawYield;
+
         const intrinsic = dcfIntrinsic(eps, growth);
         const mos       = intrinsic > 0 ? (intrinsic - price) / intrinsic * 100 : -99;
         const cagr      = gdmCagr(eps, growth, divYield, fwdPE, price);
@@ -273,16 +367,16 @@ export async function GET() {
           trailPE:   Math.round(trailPE * 10) / 10,
           fwdPE:     Math.round(fwdPE * 10) / 10,
           sectorPE,
-          growth:    Math.round(growth * 1000) / 10,   // as %
-          divYield:  Math.round(divYield * 1000) / 10,  // as %
+          growth:    Math.round(growth * 1000) / 10,
+          divYield:  Math.round(divYield * 1000) / 10,
           intrinsic: Math.round(intrinsic * 100) / 100,
           mos:       Math.round(mos * 10) / 10,
-          cagr:      Math.round(cagr * 1000) / 10,     // as %
+          cagr:      Math.round(cagr * 1000) / 10,
           peScore,
           dcfScore,
           gdmScore,
           overall:   Math.round(overall * 100) / 100,
-          currency:  q.currency ?? 'USD',
+          currency:  q.currency ?? (market === 'jp' ? 'JPY' : 'USD'),
         };
       })
       .sort((a, b) => b.overall - a.overall)
@@ -290,6 +384,7 @@ export async function GET() {
 
     return NextResponse.json({
       data:      scored,
+      market,
       total:     allQuotes.length,
       universe:  symbols.length,
       timestamp: new Date().toISOString(),

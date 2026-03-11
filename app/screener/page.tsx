@@ -199,6 +199,210 @@ function ModulePill({ label, score }: { label: string; score: number }) {
 
 type SortKey = keyof StockResult;
 
+// ─── Universe Data (for info panel) ──────────────────────────────────────────
+const UNIVERSE_INFO: Record<Market, Record<string, [string, string][]>> = {
+  us: {
+    'Technology': [
+      ['AAPL','Apple'],['MSFT','Microsoft'],['GOOGL','Alphabet'],['META','Meta'],
+      ['NVDA','NVIDIA'],['ORCL','Oracle'],['CRM','Salesforce'],['ADBE','Adobe'],
+      ['INTC','Intel'],['CSCO','Cisco'],['IBM','IBM'],['QCOM','Qualcomm'],
+      ['AMD','AMD'],['TXN','Texas Instruments'],
+    ],
+    'Financials': [
+      ['JPM','JPMorgan'],['BAC','Bank of America'],['WFC','Wells Fargo'],
+      ['GS','Goldman Sachs'],['MS','Morgan Stanley'],['BRK-B','Berkshire Hathaway'],
+      ['V','Visa'],['MA','Mastercard'],['AXP','American Express'],['BLK','BlackRock'],['C','Citigroup'],
+    ],
+    'Healthcare': [
+      ['JNJ','J&J'],['PFE','Pfizer'],['MRK','Merck'],['ABBV','AbbVie'],
+      ['BMY','Bristol-Myers'],['LLY','Eli Lilly'],['UNH','UnitedHealth'],
+      ['CVS','CVS Health'],['ABT','Abbott'],['AMGN','Amgen'],['GILD','Gilead'],
+    ],
+    'Consumer Discretionary': [
+      ['AMZN','Amazon'],['TSLA','Tesla'],['HD','Home Depot'],['LOW',"Lowe's"],
+      ["MCD","McDonald's"],['SBUX','Starbucks'],['NKE','Nike'],['TGT','Target'],
+      ['F','Ford'],['GM','GM'],
+    ],
+    'Consumer Staples': [
+      ['WMT','Walmart'],['COST','Costco'],['PG','P&G'],['KO','Coca-Cola'],
+      ['PEP','PepsiCo'],['PM','Philip Morris'],['CL','Colgate'],
+    ],
+    'Energy': [
+      ['XOM','ExxonMobil'],['CVX','Chevron'],['COP','ConocoPhillips'],
+      ['EOG','EOG Resources'],['SLB','SLB'],['OXY','Occidental'],
+    ],
+    'Industrials': [
+      ['BA','Boeing'],['GE','GE Aerospace'],['CAT','Caterpillar'],['HON','Honeywell'],
+      ['RTX','RTX'],['LMT','Lockheed Martin'],['UPS','UPS'],['FDX','FedEx'],['DE','John Deere'],
+    ],
+    'Utilities': [
+      ['NEE','NextEra'],['DUK','Duke Energy'],['SO','Southern Co.'],['D','Dominion'],
+    ],
+    'Real Estate': [
+      ['AMT','American Tower'],['PLD','Prologis'],['O','Realty Income'],
+    ],
+    'Materials': [
+      ['LIN','Linde'],['APD','Air Products'],['NEM','Newmont'],['FCX','Freeport-McMoRan'],
+    ],
+    'Communication Services': [
+      ['DIS','Disney'],['NFLX','Netflix'],['T','AT&T'],['VZ','Verizon'],['CMCSA','Comcast'],
+    ],
+  },
+  jp: {
+    'Technology': [
+      ['6758.T','ソニーグループ'],['6861.T','キーエンス'],['8035.T','東京エレクトロン'],
+      ['6981.T','村田製作所'],['6954.T','ファナック'],['6702.T','富士通'],
+      ['6594.T','ニデック'],['6723.T','ルネサス'],['6857.T','アドバンテスト'],
+    ],
+    'Consumer Discretionary': [
+      ['7974.T','任天堂'],['4661.T','オリエンタルランド'],['9766.T','コナミ'],
+    ],
+    'Industrials': [
+      ['7203.T','トヨタ'],['7267.T','ホンダ'],['6902.T','デンソー'],
+      ['7201.T','日産'],['7270.T','SUBARU'],['7269.T','スズキ'],
+      ['6501.T','日立'],['6367.T','ダイキン'],['7011.T','三菱重工'],['6752.T','パナソニック'],
+    ],
+    'Financials': [
+      ['8306.T','MUFG'],['8316.T','SMFG'],['8411.T','みずほ'],
+      ['8591.T','ORIX'],['8750.T','第一生命'],
+      ['8058.T','三菱商事'],['8031.T','三井物産'],['8001.T','伊藤忠'],['8053.T','住友商事'],
+    ],
+    'Communication Services': [
+      ['9432.T','NTT'],['9433.T','KDDI'],['9434.T','ソフトバンク'],['9984.T','SBグループ'],
+    ],
+    'Healthcare': [
+      ['4519.T','中外製薬'],['4502.T','武田薬品'],['4543.T','テルモ'],
+      ['4568.T','第一三共'],['4506.T','住友ファーマ'],
+    ],
+    'Consumer Staples': [
+      ['2914.T','JT'],['2802.T','味の素'],['3382.T','セブン＆アイ'],['2503.T','キリン'],
+    ],
+    'Materials': [
+      ['4063.T','信越化学'],['4188.T','三菱ケミカル'],['5401.T','日本製鉄'],
+    ],
+    'Utilities': [
+      ['9531.T','東京ガス'],['9502.T','中部電力'],
+    ],
+  },
+};
+
+const FETCHED_FIELDS = [
+  { name: 'regularMarketPrice',          desc: '現在株価' },
+  { name: 'epsTrailingTwelveMonths',     desc: 'TTM EPS（過去12ヶ月）' },
+  { name: 'epsForward',                  desc: '来期予想EPS' },
+  { name: 'trailingPE',                  desc: '実績PER' },
+  { name: 'forwardPE',                   desc: '予想PER' },
+  { name: 'earningsGrowth',              desc: 'アナリスト予想成長率' },
+  { name: 'trailingAnnualDividendYield', desc: '配当利回り' },
+  { name: 'currency',                    desc: '通貨（USD / JPY）' },
+  { name: 'shortName / longName',        desc: '銘柄名' },
+];
+
+const SECTOR_COLORS: Record<string, string> = {
+  'Technology':             'text-blue-400',
+  'Financials':             'text-emerald-400',
+  'Healthcare':             'text-teal-400',
+  'Consumer Discretionary': 'text-orange-400',
+  'Consumer Staples':       'text-yellow-300',
+  'Energy':                 'text-red-400',
+  'Industrials':            'text-purple-400',
+  'Utilities':              'text-cyan-400',
+  'Real Estate':            'text-pink-400',
+  'Materials':              'text-lime-400',
+  'Communication Services': 'text-violet-400',
+};
+
+// ─── Universe Info Panel ──────────────────────────────────────────────────────
+function UniversePanel({ market }: { market: Market }) {
+  const [open, setOpen] = useState(false);
+  const universe = UNIVERSE_INFO[market];
+  const total = Object.values(universe).reduce((acc, v) => acc + v.length, 0);
+
+  return (
+    <div className="mt-4 bg-gray-900/30 border border-gray-800 rounded-xl overflow-hidden">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-800/30 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-sm">📋</span>
+          <span className="text-xs font-bold text-gray-400">スクリーニング対象 &amp; データソース</span>
+          <span className="text-[10px] text-gray-600 bg-gray-800 px-1.5 py-0.5 rounded-full">
+            {total}銘柄 / {Object.keys(universe).length}セクター
+          </span>
+        </div>
+        <span className="text-gray-600 text-xs">{open ? '▲' : '▼'}</span>
+      </button>
+
+      {open && (
+        <div className="border-t border-gray-800 px-4 py-4 space-y-4">
+          {/* Data Source */}
+          <div>
+            <div className="text-[11px] font-bold text-gray-400 mb-2">📡 データソース</div>
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <span className="text-[11px] bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded font-mono">
+                yahoo-finance2
+              </span>
+              <span className="text-[11px] text-gray-500">Yahoo Finance 非公式API（リアルタイム取得）</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
+              {FETCHED_FIELDS.map(f => (
+                <div key={f.name} className="flex items-start gap-1.5 text-[10px]">
+                  <span className="text-amber-500 shrink-0 mt-0.5">·</span>
+                  <span className="font-mono text-gray-400">{f.name}</span>
+                  <span className="text-gray-600 ml-1">— {f.desc}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Stock Universe */}
+          <div>
+            <div className="text-[11px] font-bold text-gray-400 mb-2">
+              📊 銘柄ユニバース &nbsp;
+              <span className="text-gray-600 font-normal">
+                {market === 'us' ? '🇺🇸 米国株' : '🇯🇵 日本株'} — 計{total}銘柄
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+              {Object.entries(universe).map(([sector, stocks]) => (
+                <div key={sector} className="bg-gray-800/30 rounded-lg p-3">
+                  <div className={`text-[11px] font-bold mb-2 ${SECTOR_COLORS[sector] ?? 'text-gray-400'}`}>
+                    {sector}&nbsp;<span className="text-gray-600 font-normal">({stocks.length})</span>
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1">
+                    {stocks.map(([sym, name]) => (
+                      <div key={sym} className="text-[10px] leading-tight">
+                        <span className="font-mono text-gray-300">{sym}</span>
+                        <span className="text-gray-600 ml-1">{name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Coverage notes */}
+          <div className="text-[10px] text-gray-600 bg-gray-800/20 rounded-lg px-3 py-2 space-y-0.5">
+            <div>⚠️ EPS ≤ 0（赤字・ETF 等）の銘柄はスクリーニング時に自動除外</div>
+            {market === 'jp' && (
+              <>
+                <div>⚠️ 日本株は Real Estate（REIT）・Energy（石油系）セクターは未収録</div>
+                <div>⚠️ TOPIX 上位の大型株を中心に選定</div>
+              </>
+            )}
+            {market === 'us' && (
+              <div>⚠️ S&amp;P 500 全銘柄ではなく、主要 11 セクターの代表的大型株 {total} 社を収録</div>
+            )}
+            <div>💡 個別検索では Yahoo Finance に上場している任意の銘柄を分析可能</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function ScreenerPage() {
   const [market,       setMarket]       = useState<Market>('us');
@@ -774,6 +978,9 @@ export default function ScreenerPage() {
                 </div>
               </div>
             </div>
+
+            {/* Universe Info Panel */}
+            <UniversePanel market={market} />
           </>
         )}
       </main>

@@ -47,8 +47,8 @@ function moduleSymbol(score: number) {
 }
 
 // ─── Top1 Explanation ────────────────────────────────────────────────────────
-function ExplanationPanel({ stock, currency }: { stock: StockResult; currency: string }) {
-  const [open, setOpen] = useState(false);
+function ExplanationPanel({ stock, currency, defaultOpen = false }: { stock: StockResult; currency: string; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
   const sig = signal(stock.overall);
 
   const peDiff = (stock.trailPE - stock.sectorPE) / stock.sectorPE * 100;
@@ -201,14 +201,19 @@ type SortKey = keyof StockResult;
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function ScreenerPage() {
-  const [market,    setMarket]    = useState<Market>('us');
-  const [data,      setData]      = useState<StockResult[]>([]);
-  const [loading,   setLoading]   = useState(true);
-  const [error,     setError]     = useState<string | null>(null);
-  const [meta,      setMeta]      = useState<{ timestamp: string; total: number; universe: number } | null>(null);
-  const [sortKey,   setSortKey]   = useState<SortKey>('overall');
-  const [sortDir,   setSortDir]   = useState<'asc' | 'desc'>('desc');
-  const [activeTab, setActiveTab] = useState<'cards' | 'table'>('cards');
+  const [market,       setMarket]       = useState<Market>('us');
+  const [data,         setData]         = useState<StockResult[]>([]);
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState<string | null>(null);
+  const [meta,         setMeta]         = useState<{ timestamp: string; total: number; universe: number } | null>(null);
+  const [sortKey,      setSortKey]      = useState<SortKey>('overall');
+  const [sortDir,      setSortDir]      = useState<'asc' | 'desc'>('desc');
+  const [activeTab,    setActiveTab]    = useState<'cards' | 'table'>('cards');
+  // Individual stock search
+  const [singleInput,  setSingleInput]  = useState('');
+  const [singleResult, setSingleResult] = useState<StockResult | null>(null);
+  const [singleLoading,setSingleLoading]= useState(false);
+  const [singleError,  setSingleError]  = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -227,6 +232,24 @@ export default function ScreenerPage() {
   }, [market]);
 
   useEffect(() => { load(); }, [load]);
+
+  const fetchSingle = useCallback(async () => {
+    const sym = singleInput.trim().toUpperCase();
+    if (!sym) return;
+    setSingleLoading(true);
+    setSingleError(null);
+    setSingleResult(null);
+    try {
+      const res  = await fetch(`/api/stock?symbol=${encodeURIComponent(sym)}`);
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      setSingleResult(json.data);
+    } catch (e) {
+      setSingleError(e instanceof Error ? e.message : 'エラーが発生しました');
+    } finally {
+      setSingleLoading(false);
+    }
+  }, [singleInput]);
 
   const sorted = [...data].sort((a, b) => {
     const av = a[sortKey] as number;
@@ -344,6 +367,115 @@ export default function ScreenerPage() {
             </button>
           </div>
         )}
+
+        {/* ── Individual Stock Search ── */}
+        <div className="mb-6 bg-gray-900/40 border border-gray-800 rounded-2xl p-5">
+          <div className="text-xs font-bold text-gray-400 mb-3">🔍 個別銘柄を分析</div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={singleInput}
+              onChange={e => setSingleInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && fetchSingle()}
+              placeholder="ティッカーを入力（例：AAPL　7203.T）"
+              className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/50 transition-colors"
+            />
+            <button
+              onClick={fetchSingle}
+              disabled={singleLoading || !singleInput.trim()}
+              className="px-5 py-2 bg-amber-500/15 border border-amber-500/30 rounded-lg text-amber-400 text-sm font-medium hover:bg-amber-500/25 disabled:opacity-40 transition-all whitespace-nowrap"
+            >
+              {singleLoading ? '取得中...' : '分析する'}
+            </button>
+          </div>
+
+          {/* Error */}
+          {singleError && (
+            <div className="mt-3 text-xs text-red-400 bg-red-900/20 border border-red-800/40 rounded-lg px-4 py-2">
+              ⚠️ {singleError}
+            </div>
+          )}
+
+          {/* Loading */}
+          {singleLoading && (
+            <div className="mt-4 flex items-center gap-3 text-sm text-gray-500">
+              <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+              Yahoo Finance からデータを取得中...
+            </div>
+          )}
+
+          {/* Result */}
+          {singleResult && !singleLoading && (() => {
+            const s = singleResult;
+            const sig = signal(s.overall);
+            const ms = (sc: number) => moduleSymbol(sc);
+            const cur = s.currency;
+            return (
+              <div className="mt-4 border-t border-gray-800 pt-4">
+                {/* Card header */}
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <div className="text-[11px] text-gray-600 mb-0.5">{s.sector}</div>
+                    <div className="text-2xl font-black">{s.symbol}</div>
+                    <div className="text-sm text-gray-400">{s.name}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold">{fmtPrice(s.price, cur)}</div>
+                    <span
+                      className="text-xs font-bold px-2.5 py-1 rounded-full border mt-1 inline-block"
+                      style={{ color: sig.color, background: sig.bg, borderColor: sig.color + '40' }}
+                    >
+                      {sig.text}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Module scores */}
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  {[
+                    { label: 'P/E 相対比較', score: s.peScore, detail: `${s.trailPE}x vs ${s.sectorPE}x` },
+                    { label: 'DCF 本源的価値', score: s.dcfScore, detail: `MoS ${s.mos >= 0 ? '+' : ''}${s.mos.toFixed(0)}%` },
+                    { label: '成長・配当（GDM）', score: s.gdmScore, detail: `CAGR ${s.cagr}%` },
+                  ].map(m => {
+                    const icon = ms(m.score);
+                    return (
+                      <div key={m.label} className="bg-gray-800/60 rounded-xl p-3 text-center">
+                        <div className="text-[10px] text-gray-600 mb-1 leading-tight">{m.label}</div>
+                        <div className={`text-lg font-black ${icon.cls}`}>{icon.icon}</div>
+                        <div className="text-[10px] text-gray-500 mt-0.5">{m.detail}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Score bar + overall */}
+                <ScoreBar score={s.overall} />
+                <div className="flex justify-between text-[11px] text-gray-600 mt-1 mb-4">
+                  <span>総合スコア</span>
+                  <span className="font-bold" style={{ color: sig.color }}>{s.overall.toFixed(2)} / 2.00</span>
+                </div>
+
+                {/* Key metrics */}
+                <div className="grid grid-cols-4 gap-2 text-center text-xs mb-4">
+                  {[
+                    { label: '内在価値', val: fmtIntrinsic(s.intrinsic, cur), cls: 'text-amber-300' },
+                    { label: '安全域', val: `${s.mos >= 0 ? '+' : ''}${s.mos.toFixed(1)}%`, cls: s.mos >= 20 ? 'text-green-400' : s.mos >= 0 ? 'text-yellow-400' : 'text-red-400' },
+                    { label: '成長率', val: `${s.growth}%`, cls: 'text-blue-300' },
+                    { label: '配当利回り', val: `${s.divYield.toFixed(1)}%`, cls: 'text-gray-300' },
+                  ].map(m => (
+                    <div key={m.label} className="bg-gray-800/40 rounded-lg p-2">
+                      <div className="text-[10px] text-gray-600 mb-1">{m.label}</div>
+                      <div className={`font-bold ${m.cls}`}>{m.val}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Full explanation (auto-expanded) */}
+                <ExplanationPanel stock={s} currency={cur} defaultOpen />
+              </div>
+            );
+          })()}
+        </div>
 
         {/* ── Main Content ── */}
         {!loading && !error && data.length > 0 && (

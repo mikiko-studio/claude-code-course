@@ -115,10 +115,15 @@ const JP_STOCKS: { symbol: string; sector: string }[] = [
   { symbol: '6594.T', sector: 'Technology' },   // Nidec
   { symbol: '6723.T', sector: 'Technology' },   // Renesas Electronics
   { symbol: '6857.T', sector: 'Technology' },   // Advantest
-  // Gaming / Entertainment
+  { symbol: '7741.T', sector: 'Technology' },   // HOYA (precision optics / semiconductor)
+  { symbol: '6920.T', sector: 'Technology' },   // Lasertec
+  { symbol: '6146.T', sector: 'Technology' },   // Disco
+  { symbol: '6098.T', sector: 'Technology' },   // Recruit Holdings
+  // Gaming / Entertainment / Retail
   { symbol: '7974.T', sector: 'Consumer Discretionary' }, // Nintendo
   { symbol: '4661.T', sector: 'Consumer Discretionary' }, // Oriental Land
   { symbol: '9766.T', sector: 'Consumer Discretionary' }, // Konami
+  { symbol: '9983.T', sector: 'Consumer Discretionary' }, // Fast Retailing (Uniqlo)
   // Automotive
   { symbol: '7203.T', sector: 'Industrials' },  // Toyota
   { symbol: '7267.T', sector: 'Industrials' },  // Honda
@@ -148,6 +153,7 @@ const JP_STOCKS: { symbol: string; sector: string }[] = [
   { symbol: '4543.T', sector: 'Healthcare' },   // Terumo
   { symbol: '4568.T', sector: 'Healthcare' },   // Daiichi Sankyo
   { symbol: '4506.T', sector: 'Healthcare' },   // Sumitomo Pharma
+  { symbol: '7733.T', sector: 'Healthcare' },   // Olympus (medical endoscopes)
   // Consumer Staples
   { symbol: '2914.T', sector: 'Consumer Staples' }, // Japan Tobacco
   { symbol: '2802.T', sector: 'Consumer Staples' }, // Ajinomoto
@@ -165,6 +171,10 @@ const JP_STOCKS: { symbol: string; sector: string }[] = [
   { symbol: '8031.T', sector: 'Financials' },   // Mitsui & Co
   { symbol: '8001.T', sector: 'Financials' },   // Itochu
   { symbol: '8053.T', sector: 'Financials' },   // Sumitomo Corp
+  { symbol: '8002.T', sector: 'Financials' },   // Marubeni
+  // Real Estate
+  { symbol: '1925.T', sector: 'Real Estate' },  // Daiwa House Industry
+  { symbol: '8801.T', sector: 'Real Estate' },  // Mitsui Fudosan
 ];
 
 // ─── US Sector Benchmarks ─────────────────────────────────────────────────────
@@ -206,7 +216,7 @@ const JP_SECTOR_PE: Record<string, number> = {
   'Energy':                   10,
   'Industrials':              15,
   'Utilities':                14,
-  'Real Estate':              20,
+  'Real Estate':              22,
   'Materials':                12,
   'Communication Services':   14,
 };

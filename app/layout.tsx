@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Claude Code 完全マスター講座 | AIペアプログラミングで開発速度10倍",
+  title: "三角測量 割安銘柄スクリーナー | バフェット流 P/E・DCF・GDM",
   description:
-    "Claude Code を使いこなして開発速度を10倍にする実践的な日本語講座。4週間でコード生成・デバッグ・エージェント自動化・MCP連携まで完全習得。",
+    "バフェット流の3つの評価手法（P/E・DCF・GDM）でリアルタイムに割安銘柄をスクリーニング。Top20の割安株を自動表示。",
 };
 
 export default function RootLayout({

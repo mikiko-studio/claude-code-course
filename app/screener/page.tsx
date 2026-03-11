@@ -46,6 +46,120 @@ function moduleSymbol(score: number) {
   return map[score] ?? { icon: '—', cls: 'text-gray-500' };
 }
 
+// ─── Top1 Explanation ────────────────────────────────────────────────────────
+function ExplanationPanel({ stock, currency }: { stock: StockResult; currency: string }) {
+  const [open, setOpen] = useState(false);
+  const sig = signal(stock.overall);
+
+  const peDiff = (stock.trailPE - stock.sectorPE) / stock.sectorPE * 100;
+  const peVerdict =
+    peDiff <= -30 ? `セクター平均より${Math.abs(peDiff).toFixed(0)}%低く、大幅に割安な水準です` :
+    peDiff <= -10 ? `セクター平均より${Math.abs(peDiff).toFixed(0)}%低く、割安な水準です` :
+    peDiff <=  10 ? `セクター平均とほぼ同水準（差異${peDiff > 0 ? '+' : ''}${peDiff.toFixed(0)}%）です` :
+    peDiff <=  30 ? `セクター平均より${peDiff.toFixed(0)}%高く、やや割高な水準です` :
+                    `セクター平均より${peDiff.toFixed(0)}%高く、割高な水準です`;
+
+  const mosVerdict =
+    stock.mos >= 40 ? `${stock.mos.toFixed(0)}%の大きな安全域があり、内在価値を大幅に下回る価格です` :
+    stock.mos >= 20 ? `${stock.mos.toFixed(0)}%の安全域があり、内在価値を下回る適切な価格です` :
+    stock.mos >= -10 ? `内在価値に近い水準（安全域${stock.mos.toFixed(0)}%）です` :
+                       `内在価値を${Math.abs(stock.mos).toFixed(0)}%上回っており、割高の可能性があります`;
+
+  const cagrDiff = stock.cagr - 10;
+  const cagrVerdict =
+    cagrDiff >= 5 ? `目標リターン10%を${cagrDiff.toFixed(1)}ポイント上回る、高い期待リターンです` :
+    cagrDiff >= 0 ? `目標リターン10%をわずかに上回ります（CAGR ${stock.cagr}%）` :
+    cagrDiff >= -3 ? `目標リターン10%をわずかに下回ります（CAGR ${stock.cagr}%）` :
+                     `目標リターン10%を下回っており、期待リターンが低めです（CAGR ${stock.cagr}%）`;
+
+  const overallVerdict =
+    stock.overall >= 1.5 ? '3手法すべてが割安シグナルで一致。強い買いシグナルと判断されます。' :
+    stock.overall >= 0.5 ? '複数の手法が割安を示しており、割安と判断されます。' :
+    stock.overall >= -0.5 ? '手法によって評価が分かれており、適正水準と判断されます。' :
+                             '複数の手法が割高を示しており、慎重な姿勢が必要です。';
+
+  const priceStr = currency === 'JPY'
+    ? '¥' + Math.round(stock.price).toLocaleString('ja-JP')
+    : '$' + stock.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const intrinsicStr = currency === 'JPY'
+    ? '¥' + Math.round(stock.intrinsic).toLocaleString('ja-JP')
+    : '$' + Math.round(stock.intrinsic).toLocaleString('en-US');
+
+  const items = [
+    {
+      method: '① P/E 相対比較',
+      score: stock.peScore,
+      summary: `実績P/E ${stock.trailPE}倍 ÷ セクター平均${stock.sectorPE}倍`,
+      detail: `P/E（株価収益率）とは「株価 ÷ EPS（1株利益）」で求める割高・割安の基本指標です。同セクターの平均P/Eと比べることで、相対的な割安度を判定します。${stock.symbol}の実績P/Eは${stock.trailPE}倍で、${stock.sector}セクター平均の${stock.sectorPE}倍と比較すると、${peVerdict}。`,
+    },
+    {
+      method: '② DCF 本源的価値',
+      score: stock.dcfScore,
+      summary: `内在価値 ${intrinsicStr} ／ 現在値 ${priceStr}（安全域 ${stock.mos >= 0 ? '+' : ''}${stock.mos.toFixed(0)}%）`,
+      detail: `DCF（割引キャッシュフロー）法では、将来10年分のEPS（成長率${stock.growth}%で投影）と、その後の定常成長（3%）を割引率9%で現在価値に換算します。算出された内在価値${intrinsicStr}に対し、現在の株価${priceStr}は${mosVerdict}。安全域（MoS）が大きいほど、下落リスクへの余裕があります。`,
+    },
+    {
+      method: '③ 成長・配当モデル（GDM）',
+      score: stock.gdmScore,
+      summary: `10年CAGR予測 ${stock.cagr}%（目標ハードルレート：10%）`,
+      detail: `GDMでは「将来EPS × 出口P/E + 累積配当」から10年後の期待価値を計算し、現在価格からの年率リターン（CAGR）を算出します。${stock.symbol}は成長率${stock.growth}%・配当利回り${stock.divYield.toFixed(1)}%を前提とすると、${cagrVerdict}。`,
+    },
+    {
+      method: '④ 三角測量 総合スコア',
+      score: stock.overall >= 1.5 ? 2 : stock.overall >= 0.5 ? 1 : stock.overall >= -0.5 ? 0 : -1,
+      summary: `総合スコア ${stock.overall.toFixed(2)} / 2.00`,
+      detail: `三角測量とは3つの独立した手法の結論を「三角形で囲む」ように照合し、一致度が高いほど確信度が上がる考え方です。${stock.symbol}は${overallVerdict}スコアが高いほど割安への収束が強く、低いほど手法間で評価が分かれています。`,
+    },
+  ];
+
+  return (
+    <div className="mb-6 bg-gray-900/40 border border-amber-500/20 rounded-2xl overflow-hidden">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-800/30 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-amber-400 text-lg">📖</span>
+          <div className="text-left">
+            <div className="text-sm font-bold text-gray-200">
+              Top1 銘柄 解説 — <span className="text-amber-400">{stock.symbol}</span>
+              <span className="text-gray-500 font-normal ml-2">{stock.name}</span>
+            </div>
+            <div className="text-[11px] text-gray-600">各指標の読み方と評価の根拠</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <span
+            className="text-xs font-bold px-2.5 py-1 rounded-full border"
+            style={{ color: sig.color, background: sig.bg, borderColor: sig.color + '40' }}
+          >
+            {sig.text}
+          </span>
+          <span className="text-gray-600 text-sm">{open ? '▲' : '▼'}</span>
+        </div>
+      </button>
+
+      {open && (
+        <div className="px-5 pb-5 grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-gray-800">
+          {items.map((item) => {
+            const ms = moduleSymbol(item.score);
+            return (
+              <div key={item.method} className="pt-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`text-base font-black ${ms.cls}`}>{ms.icon}</span>
+                  <span className="text-xs font-bold text-gray-300">{item.method}</span>
+                </div>
+                <div className="text-[11px] text-amber-400/80 mb-2 font-mono">{item.summary}</div>
+                <p className="text-[12px] text-gray-400 leading-relaxed">{item.detail}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function fmtPrice(v: number, currency: string) {
   if (currency === 'JPY') {
     return '¥' + Math.round(v).toLocaleString('ja-JP');
@@ -261,6 +375,9 @@ export default function ScreenerPage() {
                 </div>
               ))}
             </div>
+
+            {/* Explanation Panel */}
+            <ExplanationPanel stock={data[0]} currency={currency} />
 
             {/* Tab Toggle */}
             <div className="flex items-center justify-between mb-4">
